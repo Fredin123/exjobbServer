@@ -46,8 +46,8 @@ public class ParseRinex {
             }else if(!endOfHeader){
                 //Versioncheck
                 if(lineNumber == 0){
-                    if(l.indexOf("3.03") == -1){
-                    	System.out.println("Rinex verion is wrong, must be 3.03");
+                    if(l.indexOf("3.03") == -1 && l.indexOf("3.04") == -1){
+                    	System.out.println("Rinex verion is wrong, must be 3.03 or 3.04");
                         return null;
                     }
                 }
@@ -71,7 +71,8 @@ public class ParseRinex {
     	/*if(galileoSatellites.size() > 3) { //FOR TESTING ONLY
     		return;
     	}*/
-        if(newSatelliteData.getNoradId() == -1 && newSatelliteData.getNoradId() != 40128){
+        if(newSatelliteData.getNoradId() == -1 /*|| !(newSatelliteData.getNoradId() == 40128 || newSatelliteData.getNoradId() == 41549
+        		|| newSatelliteData.getNoradId() == 40889)*/){
             /*If norad id is -1 then no associated norad was found for the svid which makes this
             * Satellite useless as the api that handles coordinate prediction needs a norad id.*/
             return;//do not insert satellite
@@ -102,6 +103,7 @@ public class ParseRinex {
             /*if(newSatelliteData.getSvid() != 19){
                 return;
             }*/
+        	System.out.println("ADded: "+newSatelliteData.getNoradId());
             galileoSatellites.add(newSatelliteData);
         }
 

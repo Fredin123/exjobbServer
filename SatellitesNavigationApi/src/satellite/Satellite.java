@@ -9,8 +9,6 @@ public class Satellite {
     private int noradId;
     private int svId;
 
-    private double pseudorange = -1;
-
     private long unixTime;
     private double longitude;
     private double latitude;
@@ -84,9 +82,6 @@ public class Satellite {
     public void setUnixTime(long newUnixTime){
     	unixTime = newUnixTime;
     }
-
-
-    public void setPseudorange(double pseudorange) {
-        this.pseudorange = pseudorange;
-    }
+    
+    
 }

@@ -1,7 +1,8 @@
 package updateCoordBuffers;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-
+import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -46,6 +47,24 @@ public class SateliteCoordBuffer {
 		coordinateBuffer.get(noradId).remove(treeMapKey);
 	}
 	
+	public static void removeEntriesOlderThan(int noradId, long targetUnixTime) {
+		/*Doesn't delete all elements if container will be empty after deletion*/
+		Set<Long> treeMapKeyIter = coordinateBuffer.get(noradId).keySet();
+		ArrayList<Long> removeList = new ArrayList<>();
+		for(long ut : treeMapKeyIter) {
+			if(ut < targetUnixTime) {
+				removeList.add(ut);
+			}
+		}
+		
+		if(coordinateBuffer.get(noradId).size() > removeList.size()) {
+			//Only remove if there will be elements left after deletion
+			for(long l : removeList) {
+				coordinateBuffer.get(noradId).remove(l);
+			}
+		}
+		
+	}
 	public static void startNewBuffer() {
 		coordinateBufferOld.clear();
 		coordinateBufferOld = coordinateBuffer;
@@ -54,6 +73,39 @@ public class SateliteCoordBuffer {
 	
 	public static Satellite getSatelliteFromNewBufer(int noradId, long unixTime) {
 		return coordinateBuffer.get(noradId).get(unixTime);
+	}
+	
+	public static long getFurthestPredictedSatellite(int noradId) {
+		Set<Long> unixTimePredictions = coordinateBuffer.get(noradId).keySet();
+		long furthestPrediction = 0;
+		for(long l : unixTimePredictions) {
+			if(l > furthestPrediction) {
+				furthestPrediction = l;
+			}
+		}
+		return furthestPrediction;
+	}
+	
+	public static long getFurthestPredictedSatelliteOldBuffer(int noradId) {
+		Set<Long> unixTimePredictions = coordinateBufferOld.get(noradId).keySet();
+		long furthestPrediction = 0;
+		for(long l : unixTimePredictions) {
+			if(l > furthestPrediction) {
+				furthestPrediction = l;
+			}
+		}
+		return furthestPrediction;
+	}
+	
+	public static int howManyAvailibleSatellitesAreThere() {
+		Set<Integer> noradIds = coordinateBuffer.keySet();
+		int availible = 0;
+		for(int noradId : noradIds) {
+			if(SateliteCoordBuffer.areTherePredictionsForThisSatellite(noradId)) {
+				availible++;
+			}
+		}
+		return availible;
 	}
 	
 	public static Satellite getSatelliteDataFromAllBuffers(int noradId, long unixTime) {
@@ -65,4 +117,11 @@ public class SateliteCoordBuffer {
 		return null;
 	}
 	
+	
+	public static boolean areTherePredictionsForThisSatellite(int noradId) {
+		if(coordinateBuffer.get(noradId).lastKey() == null && coordinateBufferOld.get(noradId).lastKey() == null){
+			return false;
+		}
+		return true;
+	}
 }

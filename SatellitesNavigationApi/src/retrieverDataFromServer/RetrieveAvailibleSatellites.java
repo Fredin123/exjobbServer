@@ -9,6 +9,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.json.*;
+
+import updateCoordBuffers.Main;
 import updateCoordBuffers.SateliteCoordBuffer;
 
 
@@ -18,12 +20,18 @@ public class RetrieveAvailibleSatellites extends HttpServlet{
 	
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+		if(Main.startBufferDone == false) {
+			response.getWriter().println("Not ready");
+			return;
+		}
 		JSONArray container = new JSONArray();
 		
 		Set<Integer> noradIds = SateliteCoordBuffer.keySet();
 		
 		for(int noradId : noradIds) {
-			container.put(Integer.toString(noradId));
+			if(SateliteCoordBuffer.areTherePredictionsForThisSatellite(noradId)) {
+				container.put(noradId);
+			}
 		}
 
 		response.getWriter().println(container.toString());

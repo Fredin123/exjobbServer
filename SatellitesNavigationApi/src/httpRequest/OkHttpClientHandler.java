@@ -14,9 +14,9 @@ public class OkHttpClientHandler {
 	static public OkHttpClient getHttpClient() {
 		if(httpClient == null) {
 			OkHttpClient.Builder builder = new OkHttpClient.Builder();
-			builder.connectTimeout(0, TimeUnit.SECONDS);
-			builder.readTimeout(0, TimeUnit.SECONDS);
-			builder.writeTimeout(0, TimeUnit.SECONDS);
+			builder.connectTimeout(45, TimeUnit.SECONDS);
+			builder.readTimeout(45, TimeUnit.SECONDS);
+			builder.writeTimeout(45, TimeUnit.SECONDS);
 			
 
 			httpClient = builder.build();

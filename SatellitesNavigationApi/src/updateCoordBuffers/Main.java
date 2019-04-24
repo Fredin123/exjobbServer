@@ -26,6 +26,8 @@ import updateCoordBuffers.satellitesFutureCoordinateBuffer.SatellitesFutureCoord
 public class Main implements OnDownloadEphemeridesCallback, ServletContextListener, OnSatellitesFutureCoordinateBufferCallback{
 	private Timer scheduleDownloadNewEphemerides = new Timer();
 	private long timerCounter = 0;
+	public static boolean startBufferDone = false;
+	
 	
 	
 	private SatellitesFutureCoordinateBuffer satellitesFutureCoordinateBuffer;
@@ -44,7 +46,6 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
         System.out.println("On shutdown web app");
     }
 	
-	@PostConstruct
 	public void startup() {
 		satellitesFutureCoordinateBuffer = new SatellitesFutureCoordinateBuffer(this);
 		startEphemeridesDownload();
@@ -52,11 +53,12 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
 	
 	
 	private void startEphemeridesDownload() {
+		System.out.println("startEphemeridesDownload\n\n");
 		unixTimeOnDownloadStart = System.currentTimeMillis() / 1000L;
 		try {
 			DownloadEphemerides.ftpDownload(this, false);
 		}catch(Exception e) {
-			System.out.println("Error while doenloading ephemerides from ftp. Maybe there is no internet connection. Try again");
+			//System.out.println("Error while downloading ephemerides from ftp. Maybe there is no internet connection. Trying again");
 			startEphemeridesDownload();
 		}
 	}
@@ -80,7 +82,11 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
 
 	@Override
 	public void onSatellitesFutureCoordinateBufferCallback(boolean b) {
+		cleanupOldPredictions();
 		updateLoop();
+		if(!startBufferDone) {
+			startBufferDone = true;
+		}
 	}
 	
 	
@@ -88,8 +94,8 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
 		scheduleDownloadNewEphemerides.schedule(new TimerTask() {
     		@Override
     		public void run() {
-    			if(timerCounter == 1800*2) {
-    				//every 1 hour, update data from ephemerides data
+    			if(timerCounter == 1800*10) {
+    				//every ? hours, update data from ephemerides data
     				timerCounter = 0;
     				startEphemeridesDownload();
     			}else {
@@ -99,9 +105,13 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
     			
     			timerCounter++;
     		}
-    	}, 10000);//After 10 seconds
+    	}, 2000);//After 2 seconds
 	}
 	
+	
+	private void cleanupOldPredictions() {
+		satellitesFutureCoordinateBuffer.cleanup();
+	}
 	
 	
 }

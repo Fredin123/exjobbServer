@@ -1,6 +1,8 @@
 package httpRequest;
 
 import java.io.IOException;
+import org.apache.commons.math3.util.Pair;
+
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -8,6 +10,10 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -21,16 +27,16 @@ import okhttp3.Request;
 import okhttp3.Response;
 import satellite.Satellite;
 
-public class UpdateSatellitesFuturePosition implements OnHttpRequestCallback {
+public class UpdateSatellitesFuturePosition{
     ArrayList<Satellite> satelliteArrayToUpdate;
     private OnUpdateSatellitesFuturePositionCallback callback;
     private boolean isBussyLoadingData = false;
 
-    private int connectionsOpened = 0;
-    private JSONArray[] returnedArraysFromConnections;
-    private int numberOfRetrievedResults = 0;
+    private ArrayList<Pair<Long, JSONArray>> returnedArraysFromConnections = new ArrayList<>();
     
+    private long downloadStartTime;
     
+    public static long timeItTakesToDownload = 6;
 
 
     public UpdateSatellitesFuturePosition(OnUpdateSatellitesFuturePositionCallback cb){
@@ -38,9 +44,11 @@ public class UpdateSatellitesFuturePosition implements OnHttpRequestCallback {
     }
 
 
-    public void updateSatelliteArrayIfAvailible(ArrayList<Satellite> satelliteArray){
+    public void updateSatelliteArrayIfAvailible(ArrayList<Satellite> satelliteArray) throws NullPointerException{
         if(!isBussyLoadingData){
-            numberOfRetrievedResults = 0;
+        	isBussyLoadingData = true;
+        	returnedArraysFromConnections.clear();
+        	downloadStartTime = System.currentTimeMillis() / 1000L;
             satelliteArrayToUpdate = satelliteArray;
             
             while(isServerReachable("https://www.n2yo.com") == false) {
@@ -60,109 +68,60 @@ public class UpdateSatellitesFuturePosition implements OnHttpRequestCallback {
                         +"/"+s.getLatitude()+"/"+s.getLongitude()+"/"+s.getAltitude()+"/300/&apiKey=AC9EDN-UHFJ8N-GDQQZZ-3ZCN";
                 apiRequests[i] = request;
             }
-
-            //Send requests
-            if(apiRequests.length > 3){
-                //Divide the requests into four different connections to make it faster
-                int poolSize = (int)Math.floor((double)apiRequests.length/4.0);
-                int leftover = apiRequests.length - poolSize*4;
-                if(leftover < 0){
-                    leftover = 0;
-                }
-
-                String[] pool1 = new String[poolSize];
-                String[] pool2 = new String[poolSize];
-                String[] pool3 = new String[poolSize];
-                String[] pool4 = new String[poolSize+leftover];
-                for(int i=0; i<poolSize; i++){
-                    pool1[i] = apiRequests[i];
-                    pool2[i] = apiRequests[poolSize+i];
-                    pool3[i] = apiRequests[(poolSize*2)+i];
-                    pool4[i] = apiRequests[(poolSize*3)+i];
-                }
-
-                for(int i=0; i<leftover; i++){
-                    pool4[poolSize+i] = apiRequests[(poolSize*4)+i];
-                }
-
-                connectionsOpened = 4;
-                returnedArraysFromConnections = new JSONArray[connectionsOpened];
-                startNewParallelConnection(0, pool1);
-                startNewParallelConnection(1, pool2);
-                startNewParallelConnection(2, pool3);
-                startNewParallelConnection(3, pool4);
-
-            }else if(apiRequests.length == 3){
-                String[] pool1 = new String[]{apiRequests[0]};
-                String[] pool2 = new String[]{apiRequests[1]};
-                String[] pool3 = new String[]{apiRequests[2]};
-
-                connectionsOpened = 3;
-                returnedArraysFromConnections = new JSONArray[connectionsOpened];
-                startNewParallelConnection(0, pool1);
-                startNewParallelConnection(1, pool2);
-                startNewParallelConnection(2, pool3);
-
-            }else if(apiRequests.length == 2){
-                String[] pool1 = new String[]{apiRequests[0]};
-                String[] pool2 = new String[]{apiRequests[1]};
-
-                connectionsOpened = 2;
-                returnedArraysFromConnections = new JSONArray[connectionsOpened];
-                startNewParallelConnection(0, pool1);
-                startNewParallelConnection(1, pool2);
-
-            }else if(apiRequests.length == 1){
-                connectionsOpened = 1;
-                returnedArraysFromConnections = new JSONArray[connectionsOpened];
-                startNewParallelConnection(0, apiRequests);
-            }
-
-            isBussyLoadingData = true;
+            
+            sendRequests(apiRequests);
+            
         }
-
-
-
-
-
 
 
     }
 
-    private void sendRequest(int poolOrder, String[] urls) throws UnknownHostException{
+    private void sendRequest(String[] urls) throws UnknownHostException{
+    	long unixStartDownloadTime = System.currentTimeMillis() / 1000L;
         JSONArray container = new JSONArray();
         int counter = 0;
+        for(int i=0; i<urls.length; i++) {
+        	System.out.print(" . ");
+        }
+        System.out.println();
         for(String url : urls){
             Request request = new Request.Builder()
                     .url(url)
                     .build();
 
-            
             try (Response response = OkHttpClientHandler.getHttpClient().newCall(request).execute()) {
                 container.put(counter, new JSONObject(response.body().string()));
                 response.body().close();
+                counter++;
+                System.out.print(" . ");
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (JSONException e) {
                 e.printStackTrace();
             }catch(Exception e) {
             	//api server might be down try request again
-            	sendRequest(poolOrder, urls);
+            	System.out.println("Request failed try again:      "+url);
+            	sendRequest(urls);
+            	return;
             }
-            counter++;
             //Log.i("Project", counter+"/"+urls.length);
         }
-
-        OnHttpRequestCallback(poolOrder, container);
+        System.out.println();
+        
+        timeItTakesToDownload = (System.currentTimeMillis() / 1000L) - unixStartDownloadTime;
+        
+        OnHttpRequestCallback(container);
     }
-    public void startNewParallelConnection(final int poolOrder, final String[] pool){
-        Thread connectionThread = new Thread(){
+    
+    
+    public void sendRequests(final String[] pool){
+    	Thread connectionThread = new Thread(){
             public void run(){
                 //new HttpRequest(UpdateSatellitesFuturePosition.this, poolOrder).execute(pool);
             	boolean wasAbleToSendRequest = false;
             	while(wasAbleToSendRequest == false) {
             		try {
-                		sendRequest(poolOrder, pool);
+                		sendRequest(pool);
                 		wasAbleToSendRequest = true;
                 	}catch(UnknownHostException e) {
                 		System.out.print("Could not access api hostm, internet might be down. Trying again.");
@@ -175,31 +134,16 @@ public class UpdateSatellitesFuturePosition implements OnHttpRequestCallback {
         connectionThread.start();
     }
 
-    @Override
-    public void OnHttpRequestCallback(int poolOrder, JSONArray result) {
-        returnedArraysFromConnections[poolOrder] = result;
-        numberOfRetrievedResults++;
-
-        if(numberOfRetrievedResults == connectionsOpened){//ALl opened connections are done
-            JSONArray compiledArrays = new JSONArray();
-
-            int mainIndex = 0;
-            for(int i=0; i<returnedArraysFromConnections.length; i++){
-                JSONArray subArr = returnedArraysFromConnections[i];
-                for(int x=0; x<subArr.length(); x++){
-                    try {
-                        compiledArrays.put(mainIndex, subArr.get(x));
-                        mainIndex++;
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-
-            isBussyLoadingData = false;
-            callback.onUpdateSatellitesFuturePositionCallback(compiledArrays);
-        }
+    
+    public void OnHttpRequestCallback(JSONArray result) {
+    	long timeToDownloadThisPart = (System.currentTimeMillis()/1000L) - downloadStartTime;
+        returnedArraysFromConnections.add(new Pair<>(timeToDownloadThisPart, result));
+        
+        isBussyLoadingData = false;
+        callback.onUpdateSatellitesFuturePositionCallback(returnedArraysFromConnections);
     }
+    
+
     
     private boolean isServerReachable(String url) {
     	/*
