@@ -33,19 +33,15 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
 
     private OnSatellitesFutureCoordinateBufferCallback callbackBoolean;
 
-    public static final int targetMinBufferSize = 256;
-    private final int numberOfOldPredictionsToKeep = 10;
+    public static final int targetMinBufferSize = 10;
+    private final int numberOfOldPredictionsToKeep = 256;
 
-    private Timer scheduleLoadMorePredictions;
     
     
     private OnSatellitesFutureCoordinateBufferCallback bufferComplete;
     
-    private Timer timer = new Timer();
-
     public SatellitesFutureCoordinateBuffer(OnSatellitesFutureCoordinateBufferCallback callback){
     	bufferComplete = callback;
-        scheduleLoadMorePredictions = new Timer();
         dateSinceEphemerisUpdate = new Date();
 
         futureSatellitePositionUpdater = new UpdateSatellitesFuturePosition(this);
@@ -85,6 +81,7 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
 
 
     private void retrieveMorePredictionData(){
+    	long currentUnixTime = System.currentTimeMillis() / 1000L;
         ArrayList<Satellite> startCoordsSattelites = new ArrayList<>();
         Set<Integer> noradIds = SateliteCoordBuffer.keySet();
         for(Integer noradId : noradIds){
@@ -92,11 +89,14 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
             		noradId, 
             		SateliteCoordBuffer.getFurthestPredictedSatellite(noradId)
             		);
-            if(s == null) {
-            	System.out.println("Satellite is null! noradid:"+ noradId+" get furthest predicted satellite position from old buffer");
-            	System.out.println(SateliteCoordBuffer.getTreeMap(noradId).toString());
-            }
-            startCoordsSattelites.add(s);
+            
+            long satelliteFurthestPrediction = SateliteCoordBuffer.getFurthestPredictedSatellite(noradId);
+            
+            long howLongInTheFuture = satelliteFurthestPrediction - currentUnixTime;
+    		if(howLongInTheFuture < targetMinBufferSize) {
+    			startCoordsSattelites.add(s);
+    		}
+            
         }
         
 
@@ -120,15 +120,20 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
         //This also removes outdated predictions
         long currentUnixTime = System.currentTimeMillis() / 1000L;
 
+        
         Set<Integer> noradIds = SateliteCoordBuffer.keySet();
         for(int noradId : noradIds){
         	TreeMap<Long, Satellite> satellitePredictions = SateliteCoordBuffer.getTreeMap(noradId);
         	long satelliteFurthestPrediction = SateliteCoordBuffer.getFurthestPredictedSatellite(noradId);
+        	
         	if(satelliteFurthestPrediction > currentUnixTime) {
         		/*Satellites furthest prediction is in the future. Check how long in the future*/
         		long howLongInTheFuture = satelliteFurthestPrediction - currentUnixTime;
+        		/*if(smallestBuffer == -1 || smallestBuffer > (howLongInTheFuture)) {
+            		
+            	}*/
         		//Check if this satellite have enough buffered predictions
-        		System.out.println("howLongInTheFuture: "+howLongInTheFuture);
+        		//System.out.println("howLongInTheFuture: "+howLongInTheFuture);
         		if(howLongInTheFuture < targetMinBufferSize) {
         			System.out.println("Satellite "+noradId+" buffer needs "+(targetMinBufferSize-howLongInTheFuture)+" more predictions to reach prediction target");
         			return false;
@@ -154,7 +159,7 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
     	Set<Integer> noradIds = SateliteCoordBuffer.keySet();
         for(int noradId : noradIds){
         	//remove all old projections except the last which will be our next base projection to continue our satellite projection from
-            SateliteCoordBuffer.removeEntriesOlderThan(noradId, unixTime-numberOfOldPredictionsToKeep);
+            SateliteCoordBuffer.removeEntriesOlderThan(noradId, unixTime);
         }
     	
     }
@@ -189,13 +194,13 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
 
                 
     			JSONArray positions = dataArr.getJSONObject(i).getJSONArray("positions");
-    			for(int p=0; p<positions.length(); p++) {
+    			for(long p=0/*howLongItTookToDownload*/; p<positions.length(); p++) {
     				insertNewProjectedCoordinates(
                             noradId,
-                            positions.getJSONObject(p).getDouble("satlatitude"),
-                            positions.getJSONObject(p).getDouble("satlongitude"),
-                            positions.getJSONObject(p).getDouble("sataltitude"),
-                            furthestPrediction+p);
+                            positions.getJSONObject((int)p).getDouble("satlatitude"),
+                            positions.getJSONObject((int)p).getDouble("satlongitude"),
+                            positions.getJSONObject((int)p).getDouble("sataltitude"),
+                            furthestPrediction+p+1);
     			}
     			
     		}
@@ -213,11 +218,11 @@ public class SatellitesFutureCoordinateBuffer implements OnUpdateSatellitesFutur
     
     
     public void downloadMoreIfBufferIsSmall() {
-    	if(!isBufferBigEnough()) {
-			retrieveMorePredictionData();
-		}else {
-			bufferComplete.onSatellitesFutureCoordinateBufferCallback(true);
-		}
+    	if(isBufferBigEnough()){
+        	bufferComplete.onSatellitesFutureCoordinateBufferCallback(true);
+        }else{
+            retrieveMorePredictionData();
+        }
     }
 
 

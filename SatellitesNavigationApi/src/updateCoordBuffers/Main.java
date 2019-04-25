@@ -55,12 +55,13 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
 	private void startEphemeridesDownload() {
 		System.out.println("startEphemeridesDownload\n\n");
 		unixTimeOnDownloadStart = System.currentTimeMillis() / 1000L;
-		try {
+		//try {
 			DownloadEphemerides.ftpDownload(this, false);
-		}catch(Exception e) {
-			//System.out.println("Error while downloading ephemerides from ftp. Maybe there is no internet connection. Trying again");
+		/*}catch(Exception e) {
+			System.out.println("Error while downloading ephemerides from ftp. Trying again");
+			System.out.println(e.getMessage());
 			startEphemeridesDownload();
-		}
+		}*/
 	}
 
 	@Override
@@ -97,7 +98,7 @@ public class Main implements OnDownloadEphemeridesCallback, ServletContextListen
     			if(timerCounter == 1800*10) {
     				//every ? hours, update data from ephemerides data
     				timerCounter = 0;
-    				startEphemeridesDownload();
+    				//startEphemeridesDownload();
     			}else {
     				//Update existing data
     				satellitesFutureCoordinateBuffer.downloadMoreIfBufferIsSmall();

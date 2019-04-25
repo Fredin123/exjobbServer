@@ -30,14 +30,16 @@ import satellite.Satellite;
 public class UpdateSatellitesFuturePosition{
     ArrayList<Satellite> satelliteArrayToUpdate;
     private OnUpdateSatellitesFuturePositionCallback callback;
-    private boolean isBussyLoadingData = false;
+    private static boolean isBussyLoadingData = false;
 
     private ArrayList<Pair<Long, JSONArray>> returnedArraysFromConnections = new ArrayList<>();
     
     private long downloadStartTime;
     
     public static long timeItTakesToDownload = 6;
-
+    JSONArray sendBackContainer;
+    private int requestsWaiting = 0;
+    private int requestsComplete = 0;
 
     public UpdateSatellitesFuturePosition(OnUpdateSatellitesFuturePositionCallback cb){
         callback = cb;
@@ -69,6 +71,9 @@ public class UpdateSatellitesFuturePosition{
                 apiRequests[i] = request;
             }
             
+            sendBackContainer = new JSONArray();
+            requestsWaiting = apiRequests.length;
+            requestsComplete = 0;
             sendRequests(apiRequests);
             
         }
@@ -78,66 +83,72 @@ public class UpdateSatellitesFuturePosition{
 
     private void sendRequest(String[] urls) throws UnknownHostException{
     	long unixStartDownloadTime = System.currentTimeMillis() / 1000L;
-        JSONArray container = new JSONArray();
-        int counter = 0;
+        
         for(int i=0; i<urls.length; i++) {
         	System.out.print(" . ");
         }
         System.out.println();
         for(String url : urls){
-            Request request = new Request.Builder()
-                    .url(url)
-                    .build();
-
-            try (Response response = OkHttpClientHandler.getHttpClient().newCall(request).execute()) {
-                container.put(counter, new JSONObject(response.body().string()));
-                response.body().close();
-                counter++;
-                System.out.print(" . ");
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }catch(Exception e) {
-            	//api server might be down try request again
-            	System.out.println("Request failed try again:      "+url);
-            	sendRequest(urls);
-            	return;
-            }
-            //Log.i("Project", counter+"/"+urls.length);
+        	requestOneUrl(url);
         }
         System.out.println();
         
         timeItTakesToDownload = (System.currentTimeMillis() / 1000L) - unixStartDownloadTime;
         
-        OnHttpRequestCallback(container);
+        
     }
     
     
-    public void sendRequests(final String[] pool){
+    private void requestOneUrl(String url) {
     	Thread connectionThread = new Thread(){
             public void run(){
-                //new HttpRequest(UpdateSatellitesFuturePosition.this, poolOrder).execute(pool);
-            	boolean wasAbleToSendRequest = false;
-            	while(wasAbleToSendRequest == false) {
-            		try {
-                		sendRequest(pool);
-                		wasAbleToSendRequest = true;
-                	}catch(UnknownHostException e) {
-                		System.out.print("Could not access api hostm, internet might be down. Trying again.");
-                	}
-            	}
-            	
+                
+            	Request request = new Request.Builder()
+                        .url(url)
+                        .build();
+
+                try (Response response = OkHttpClientHandler.getHttpClient().newCall(request).execute()) {
+                    sendBackContainer.put(requestsComplete, new JSONObject(response.body().string()));
+                    response.body().close();
+                    requestsComplete++;
+                    System.out.print(" . ");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }catch(Exception e) {
+                	//api server might be down try request again
+                	System.out.println("Request failed try again:      "+url);
+                	requestOneUrl(url);
+                	return;
+                }
+                
+                
+                if(requestsComplete >= requestsWaiting) {
+                	OnHttpRequestCallback();
+                }
                 
             }
         };
-        connectionThread.start();
+        connectionThread.run();
+    }
+    
+    public void sendRequests(final String[] pool){
+    	boolean wasAbleToSendRequest = false;
+    	while(wasAbleToSendRequest == false) {
+    		try {
+        		sendRequest(pool);
+        		wasAbleToSendRequest = true;
+        	}catch(UnknownHostException e) {
+        		System.out.print("Could not access api hostm, internet might be down. Trying again.");
+        	}
+    	}
     }
 
     
-    public void OnHttpRequestCallback(JSONArray result) {
+    public void OnHttpRequestCallback() {
     	long timeToDownloadThisPart = (System.currentTimeMillis()/1000L) - downloadStartTime;
-        returnedArraysFromConnections.add(new Pair<>(timeToDownloadThisPart, result));
+        returnedArraysFromConnections.add(new Pair<>(timeToDownloadThisPart, sendBackContainer));
         
         isBussyLoadingData = false;
         callback.onUpdateSatellitesFuturePositionCallback(returnedArraysFromConnections);

@@ -22,6 +22,7 @@ public class RetrieveSatelliteData extends HttpServlet{
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		if(Main.startBufferDone == false) {
+			response.setStatus(500);
 			response.getWriter().println("Not ready");
 			return;
 		}
@@ -63,12 +64,13 @@ public class RetrieveSatelliteData extends HttpServlet{
 				if(returnAllFuturePredictions.equals("false")) {
 					break;
 				}
-			}else if(predictionsCounterTest == 0){
+			}else/* if(predictionsCounterTest == 0)*/{
 				//If the first position was not found. then we we don't want to send back only future predictions as the server is not done loading so we quit instead
 				break;
 			}
 			
 			predictionsCounterTest++;
+			
 		}
 		
 		

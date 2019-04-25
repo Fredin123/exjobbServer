@@ -21,6 +21,7 @@ public class RetrieveAvailibleSatellites extends HttpServlet{
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		if(Main.startBufferDone == false) {
+			response.setStatus(500);
 			response.getWriter().println("Not ready");
 			return;
 		}
