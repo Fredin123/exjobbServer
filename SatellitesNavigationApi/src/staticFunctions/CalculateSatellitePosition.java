@@ -204,16 +204,6 @@ public class CalculateSatellitePosition {
 
         return ellipsoid;
 
-
-        /*double latitude = Math.atan2(coordsCartesian[2], Math.sqrt(Math.pow(coordsCartesian[0], 2) + Math.pow(coordsCartesian[1], 2)));
-        double longitude = Math.atan2(coordsCartesian[1], coordsCartesian[0]);
-
-        return new double[]{(latitude*(180/Math.PI)), (longitude*(180/Math.PI))};*/
-
-
-
-
-
     }
 }
 

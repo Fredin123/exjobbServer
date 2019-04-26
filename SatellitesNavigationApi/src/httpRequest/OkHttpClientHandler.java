@@ -17,7 +17,7 @@ public class OkHttpClientHandler {
 			builder.connectTimeout(45, TimeUnit.SECONDS);
 			builder.readTimeout(45, TimeUnit.SECONDS);
 			builder.writeTimeout(45, TimeUnit.SECONDS);
-			
+			builder.retryOnConnectionFailure(true);
 
 			httpClient = builder.build();
 		}
