@@ -67,7 +67,7 @@ public class UpdateSatellitesFuturePosition{
             for(int i=0; i<satelliteArrayToUpdate.size(); i++){
             	Satellite s = satelliteArrayToUpdate.get(i);
                 String request = "https://www.n2yo.com/rest/v1/satellite/positions/"+Integer.toString(s.getNoradId())
-                        +"/"+s.getLatitude()+"/"+s.getLongitude()+"/"+s.getAltitude()+"/300/&apiKey=AC9EDN-UHFJ8N-GDQQZZ-3ZCN";
+                        +"/"+s.getLatitude()+"/"+s.getLongitude()+"/"+s.getAltitude()+"/300/&apiKey=AAAAAA-AAAAAA-AAAAAA-AAAA";
                 apiRequests[i] = request;
             }
             
