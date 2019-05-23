@@ -53,6 +53,7 @@ public class CalculateSatellitePosition {
         int idw = id_GPS % 7;
         //Number of GPS week:
         int nw = (id_GPS-idw)/7;
+	//86400.0 is the number of seconds in a day
         //seconds in the week:
         double sw = (double)(idw)*86400.0+eph.getSecondsInTheDay();
 
